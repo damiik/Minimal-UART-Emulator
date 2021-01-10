@@ -1,10 +1,10 @@
-// Minimal UART Emulator by Carsten Herting (2020/2021)
+// Minimal UART Emulator by Carsten Herting (2020/2021) Version 1.02
 // Compile with g++ main.cpp -Os -s
 // Have fun!
 
-#include <iostream>						// console output
-#include <windows.h>					// simple windows timing
-#include <conio.h>						// keyboard input, ancient and non-portable :-)
+#include <iostream>											// console output
+#include <windows.h>										// simple windows timing
+#include <conio.h>											// keyboard input, ancient and non-portable :-)
 #include <memory>
 #include <vector>
 #include <fstream>
@@ -146,11 +146,11 @@ public:
 	}
 	void FallingEdge()						// set the control lines according to flags, instruction & step
 	{
-		mCtrlLines = mMicrocode[(mRegFlags->Get()<<10) | (mRegInstr->Get()<<4) | (mRegSteps->Get() & 0b1111)];
+		mCtrlLines = mMicrocode[((mRegFlags->Get() & 0b111)<<10) | ((mRegInstr->Get() & 0b111111)<<4) | (mRegSteps->Get() & 0b1111)];
 		if (mCtrlLines & IC)				// immediate asnychroneous reset
 		{
 			mRegSteps->Reset();
-			mCtrlLines = mMicrocode[(mRegFlags->Get()<<10) | (mRegInstr->Get()<<4) | (mRegSteps->Get() & 0b1111)];
+			mCtrlLines = mMicrocode[((mRegFlags->Get() & 0b111)<<10) | ((mRegInstr->Get() & 0b111111)<<4) | (mRegSteps->Get() & 0b1111)];
 		}
 		if (mCtrlLines & HI) mPortLines = 0x7f; else mPortLines = 0xff;				// also set the state of the port (pull-up to +5V)
 	}	
@@ -193,7 +193,6 @@ public:
 		uint32_t nowticks = GetTickCount();
 		mSimTime += (nowticks - mLastTicks)*0.001f;
 		mLastTicks = nowticks;		
-		
 		while (mSimTime > 1.0f / 1843200.0f)
 		{
 			for(auto& c : mComponents) c->FallingEdge();
