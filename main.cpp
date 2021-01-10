@@ -3,11 +3,24 @@
 // Have fun!
 
 #include <iostream>											// console output
-#include <windows.h>										// simple windows timing
-#include <conio.h>											// keyboard input, ancient and non-portable :-)
+
 #include <memory>
 #include <vector>
 #include <fstream>
+
+#include "conio.h"										// keyboard input, ancient and non-portable :-)
+
+
+static uint64_t GetTickCountMs()
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    return (uint64_t)(ts.tv_nsec / 1000000) + ((uint64_t) ts.tv_sec * 1000ull);
+}
+
+
 
 #define BO   		0b0000000000000001			// definition of control lines within control word
 #define BI  		0b0000000000000010
@@ -186,11 +199,11 @@ public:
 	{
 		for (auto& c : mComponents) c->Reset();
 		mInput = ""; mSimTime = 0.0f;
-		mLastTicks = GetTickCount();
+		mLastTicks = GetTickCountMs(); //GetTickCount();
 	}
 	void Update()
 	{
-		uint32_t nowticks = GetTickCount();
+		uint32_t nowticks = GetTickCountMs(); //GetTickCount();
 		mSimTime += (nowticks - mLastTicks)*0.001f;
 		mLastTicks = nowticks;		
 		while (mSimTime > 1.0f / 1843200.0f)
@@ -216,7 +229,12 @@ protected:
 
 int main()
 {
-	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
+	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
+	
+	textbackground(BLUE);
+  clrscr();  
+  textcolor(YELLOW);
+	
 	Computer cpu;
 	bool running = true;
 	while (running)
@@ -247,7 +265,7 @@ int main()
 			lastch = ch;
 		}		
 		cpu.Update();
-		Sleep(1);
+		usleep(100); // sleep useconds //Sleep(1);
 	}
 	return 0;
 }
