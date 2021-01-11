@@ -2,7 +2,7 @@
 // Compile with g++ main.cpp -Os -s
 // Have fun!
 
-#include <iostream>											// console output
+//#include <iostream>											// console output
 
 #include <memory>
 #include <vector>
@@ -134,7 +134,7 @@ public:
 	{
 		if ((mCtrlLines & mInMask))
 		{
-			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) std::cout << mPortLines;	// 0x8000-0xffff: schreiben in UART
+			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) putch( mPortLines );	// 0x8000-0xffff: schreiben in UART
 			else if (mMAR->Get() >= 0x2000) mStore[mMAR->Get()] = mPortLines;									// 0x2000-0x7fff: RAM, do not overwrite ROM 0x0000-0x1fff																																			// 0x0000-0x7fff: schreiben in RAM
 		}		
 	}
@@ -265,7 +265,7 @@ int main()
 			lastch = ch;
 		}		
 		cpu.Update();
-		usleep(100); // sleep useconds //Sleep(1);
+		usleep(1000); // sleep useconds //Sleep(1);
 	}
 	return 0;
 }
