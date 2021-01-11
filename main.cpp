@@ -2,14 +2,59 @@
 // Compile with g++ main.cpp -Os -s
 // Have fun!
 
-#include <iostream>											// console output
+//#include <iostream>											// console output
 
 #include <memory>
 #include <vector>
 #include <fstream>
 
-#include "conio.h"										// keyboard input, ancient and non-portable :-)
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <ctype.h>
+#include <sys/ioctl.h>
 
+int kbhit(void)
+{
+  struct termios oldt, newt;
+  int ch;
+  int oldf;
+ 
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+ 
+  ch = getchar();
+ 
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
+ 
+  if(ch != EOF)
+  {
+    ungetc(ch, stdin);
+    return 1;
+  }
+ 
+  return 0;
+}
+
+int getch_echo(bool echo=true){
+	struct termios oldt, newt;
+	int ch;
+	tcgetattr( STDIN_FILENO, &oldt );
+	newt = oldt;
+	newt.c_lflag &= ~ICANON;
+	if(echo)	newt.c_lflag &=  ECHO;
+	else
+		newt.c_lflag &= ~ECHO;
+	tcsetattr( STDIN_FILENO, TCSANOW, &newt );
+	ch = getchar();
+	tcsetattr( STDIN_FILENO, TCSANOW, &oldt );
+	return ch;
+}
 
 static uint64_t GetTickCountMs()
 {
@@ -134,7 +179,7 @@ public:
 	{
 		if ((mCtrlLines & mInMask))
 		{
-			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) std::cout << mPortLines;	// 0x8000-0xffff: schreiben in UART
+			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) printf("%c", mPortLines);	// 0x8000-0xffff: schreiben in UART
 			else if (mMAR->Get() >= 0x2000) mStore[mMAR->Get()] = mPortLines;									// 0x2000-0x7fff: RAM, do not overwrite ROM 0x0000-0x1fff																																			// 0x0000-0x7fff: schreiben in RAM
 		}		
 	}
@@ -231,10 +276,7 @@ int main()
 {
 	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
 	
-	textbackground(BLUE);
-  clrscr();  
-  textcolor(YELLOW);
-	
+	printf("\033[43m \033[93m");	
 	Computer cpu;
 	bool running = true;
 	while (running)
@@ -242,7 +284,7 @@ int main()
 		while (kbhit())
 		{
 			static char lastch = 0;
-			char ch = getch();												// read-in of a character code
+			char ch = getch_echo(false);												// read-in of a character code
 			switch(lastch)
 			{
 				case -32:
