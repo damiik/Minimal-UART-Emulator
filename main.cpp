@@ -276,7 +276,9 @@ int main()
 {
 	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
 	
-	printf("\033[43m \033[93m");	
+	// foreground and background colors
+	printf("\033[38;2;200;140;20;48;2;50;35;8m"); //"\033[38;2;<r>;<g>;<b>;48;2;<r>;<g>;<b>m" 
+	
 	Computer cpu;
 	bool running = true;
 	while (running)
