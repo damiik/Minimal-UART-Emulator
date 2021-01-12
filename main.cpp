@@ -2,27 +2,13 @@
 // Compile with g++ main.cpp -Os -s
 // Have fun!
 
-//#include <iostream>											// console output
-
 #include <memory>
 #include <vector>
 #include <fstream>
 
-#include <unistd.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <sys/ioctl.h>
-
-#include "./conio.h"
+#include "./myio.h"
 
 
-static uint64_t GetTickCountNs()
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return (uint64_t) (ts.tv_nsec) + ((uint64_t) ts.tv_sec * 1000000000ull);
-}
 
 #define BO   		0b0000000000000001			// definition of control lines within control word
 #define BI  		0b0000000000000010
@@ -136,7 +122,7 @@ public:
 	{
 		if ((mCtrlLines & mInMask))
 		{
-			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) printf("%c", mPortLines);	// 0x8000-0xffff: schreiben in UART
+			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) putchar( mPortLines);	// 0x8000-0xffff: schreiben in UART
 			else if (mMAR->Get() >= 0x2000) mStore[mMAR->Get()] = mPortLines;									// 0x2000-0x7fff: RAM, do not overwrite ROM 0x0000-0x1fff																																			// 0x0000-0x7fff: schreiben in RAM
 		}		
 	}
@@ -230,27 +216,31 @@ protected:
 	std::vector<std::shared_ptr<Component>> mComponents;
 };
 
+
 int main()
 {
 	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
 	
 	// foreground and background colors
 	printf("\033[38;2;200;140;20;48;2;50;35;8m"); //"\033[38;2;<r>;<g>;<b>;48;2;<r>;<g>;<b>m" 
-	
+
+
 	Computer cpu;
 	bool running = true;
 	while (running)
 	{
+		enable_raw_mode();
 		while (kbhit())
 		{
+			disable_raw_mode();
+			tcflush(0, TCIFLUSH); 
+
 			static char lastch = 0;
-			char ch = getch();												// read-in of a character code
-			printf("\033[1D");
+			char ch = getchar(); 											// read-in of a character code
 
 			switch(lastch)
 			{
 				case 27:
-					printf("\033[1D");
 					switch(ch)
 					{
 						case 91: running = false; break;		// END
