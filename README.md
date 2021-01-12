@@ -11,7 +11,7 @@ After 2 days of fun, experiments and even hard work sometimes I found out good r
 
 ------------------------------------------------------------------------------------------
 
-## Oryginal description:
+## Original description:
 
 Emulate the Minimal UART CPU in real-time in under 250 lines of C++ code.
 
