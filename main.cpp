@@ -2,68 +2,11 @@
 // Compile with g++ main.cpp -Os -s
 // Have fun!
 
-//#include <iostream>											// console output
-
 #include <memory>
 #include <vector>
 #include <fstream>
 
-#include <unistd.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <ctype.h>
-#include <sys/ioctl.h>
-
-int kbhit(void)
-{
-  struct termios oldt, newt;
-  int ch;
-  int oldf;
- 
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
- 
-  ch = getchar();
- 
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
- 
-  if(ch != EOF)
-  {
-    ungetc(ch, stdin);
-    return 1;
-  }
- 
-  return 0;
-}
-
-int getch_echo(bool echo=true){
-	struct termios oldt, newt;
-	int ch;
-	tcgetattr( STDIN_FILENO, &oldt );
-	newt = oldt;
-	newt.c_lflag &= ~ICANON;
-	if(echo)	newt.c_lflag &=  ECHO;
-	else
-		newt.c_lflag &= ~ECHO;
-	tcsetattr( STDIN_FILENO, TCSANOW, &newt );
-	ch = getchar();
-	tcsetattr( STDIN_FILENO, TCSANOW, &oldt );
-	return ch;
-}
-
-static uint64_t GetTickCountMs()
-{
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (uint64_t)(ts.tv_nsec / 1000000) + ((uint64_t) ts.tv_sec * 1000ull);
-}
+#include "./myio.h"
 
 
 
@@ -179,7 +122,7 @@ public:
 	{
 		if ((mCtrlLines & mInMask))
 		{
-			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) printf("%c", mPortLines);	// 0x8000-0xffff: schreiben in UART
+			if((mMAR->Get() & 0x8000) == 0x8000 && mPortLines != 0) putchar( mPortLines);	// 0x8000-0xffff: schreiben in UART
 			else if (mMAR->Get() >= 0x2000) mStore[mMAR->Get()] = mPortLines;									// 0x2000-0x7fff: RAM, do not overwrite ROM 0x0000-0x1fff																																			// 0x0000-0x7fff: schreiben in RAM
 		}		
 	}
@@ -244,27 +187,28 @@ public:
 	{
 		for (auto& c : mComponents) c->Reset();
 		mInput = ""; mSimTime = 0.0f;
-		mLastTicks = GetTickCountMs(); //GetTickCount();
+		mLastTicks = GetTickCountNs();
 	}
 	void Update()
 	{
-		uint32_t nowticks = GetTickCountMs(); //GetTickCount();
-		mSimTime += (nowticks - mLastTicks)*0.001f;
-		mLastTicks = nowticks;		
-		while (mSimTime > 1.0f / 1843200.0f)
+		uint64_t nowticks = GetTickCountNs();
+		mSimTime = (nowticks - mLastTicks);
+		mLastTicks = nowticks;
+		while (mSimTime > 542.534722222f)  // 1 / 1843200Hz = 0.000000543s = 542.534722222ns
 		{
 			for(auto& c : mComponents) c->FallingEdge();
 			for(auto& c : mComponents) c->BeingLow();
 			for(auto& c : mComponents) c->RisingEdge();
 			for(auto& c : mComponents) c->GettingHigh();
 			for(auto& c : mComponents) c->BeingHigh();
-			mSimTime -= 1.0f / 1843200.0f;
+			mSimTime -= 542.534722222f;
 		}
 	}
 	void Input(char s) { mInput += s; }
+
 protected:
 	std::string mInput;
-	uint32_t mLastTicks;
+	uint64_t mLastTicks;
 	float mSimTime;
 	uint8_t mBusLines;
 	uint8_t mFlagLines;
@@ -272,35 +216,42 @@ protected:
 	std::vector<std::shared_ptr<Component>> mComponents;
 };
 
+
 int main()
 {
 	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
 	
 	// foreground and background colors
 	printf("\033[38;2;200;140;20;48;2;50;35;8m"); //"\033[38;2;<r>;<g>;<b>;48;2;<r>;<g>;<b>m" 
-	
+
+
 	Computer cpu;
 	bool running = true;
 	while (running)
 	{
+		enable_raw_mode();
 		while (kbhit())
 		{
+			disable_raw_mode();
+			tcflush(0, TCIFLUSH); 
+
 			static char lastch = 0;
-			char ch = getch_echo(false);												// read-in of a character code
+			char ch = getchar(); 											// read-in of a character code
+
 			switch(lastch)
 			{
-				case -32:
+				case 27:
 					switch(ch)
 					{
-						case 79: running = false; break;		// END
-						case 71: cpu.Reset(); break;				// POS1 = Reset
+						case 91: running = false; break;		// END
+						case 27: cpu.Reset(); break;				// POS1 = Reset
 						default: break;
 					}
 					break;
 				default:
 					switch(ch)														// expecting "single key"
 					{
-						case -32: break;										// move to special key mode
+						case 27: break;										// move to special key mode
 						case 13: cpu.Input('\n'); break;
 						default: cpu.Input(ch); break;
 					}
@@ -309,7 +260,7 @@ int main()
 			lastch = ch;
 		}		
 		cpu.Update();
-		usleep(100); // sleep useconds //Sleep(1);
+		usleep(100); // sleep useconds
 	}
 	return 0;
 }
