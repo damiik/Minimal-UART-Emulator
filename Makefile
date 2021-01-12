@@ -6,6 +6,7 @@ CFLAGS = -O3 -std=c++11 -Wall -I/usr/include/
 .PHONY: default all clean
 
 default: $(TARGET)
+
 all: default
 
 OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
