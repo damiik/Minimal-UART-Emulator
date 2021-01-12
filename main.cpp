@@ -14,58 +14,15 @@
 #include <ctype.h>
 #include <sys/ioctl.h>
 
-int kbhit(void)
-{
-  struct termios oldt, newt;
-  int ch;
-  int oldf;
- 
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
- 
-  ch = getchar();
- 
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
- 
-  if(ch != EOF)
-  {
-    ungetc(ch, stdin);
-    return 1;
-  }
- 
-  return 0;
-}
+#include "./conio.h"
 
-int getch_echo(bool echo=true){
-	struct termios oldt, newt;
-	int ch;
-	tcgetattr( STDIN_FILENO, &oldt );
-	newt = oldt;
-	newt.c_lflag &= ~ICANON;
-	if(echo)	newt.c_lflag &=  ECHO;
-	else
-		newt.c_lflag &= ~ECHO;
-	tcsetattr( STDIN_FILENO, TCSANOW, &newt );
-	ch = getchar();
-	tcsetattr( STDIN_FILENO, TCSANOW, &oldt );
-	return ch;
-}
 
-static uint64_t GetTickCountMs()
+static uint64_t GetTickCountNs()
 {
     struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (uint64_t)(ts.tv_nsec / 1000000) + ((uint64_t) ts.tv_sec * 1000ull);
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (uint64_t) (ts.tv_nsec) + ((uint64_t) ts.tv_sec * 1000000000ull);
 }
-
-
 
 #define BO   		0b0000000000000001			// definition of control lines within control word
 #define BI  		0b0000000000000010
@@ -244,27 +201,28 @@ public:
 	{
 		for (auto& c : mComponents) c->Reset();
 		mInput = ""; mSimTime = 0.0f;
-		mLastTicks = GetTickCountMs(); //GetTickCount();
+		mLastTicks = GetTickCountNs();
 	}
 	void Update()
 	{
-		uint32_t nowticks = GetTickCountMs(); //GetTickCount();
-		mSimTime += (nowticks - mLastTicks)*0.001f;
-		mLastTicks = nowticks;		
-		while (mSimTime > 1.0f / 1843200.0f)
+		uint64_t nowticks = GetTickCountNs();
+		mSimTime = (nowticks - mLastTicks);
+		mLastTicks = nowticks;
+		while (mSimTime > 542.534722222f)  // 1 / 1843200Hz = 0.000000543s = 542.534722222ns
 		{
 			for(auto& c : mComponents) c->FallingEdge();
 			for(auto& c : mComponents) c->BeingLow();
 			for(auto& c : mComponents) c->RisingEdge();
 			for(auto& c : mComponents) c->GettingHigh();
 			for(auto& c : mComponents) c->BeingHigh();
-			mSimTime -= 1.0f / 1843200.0f;
+			mSimTime -= 542.534722222f;
 		}
 	}
 	void Input(char s) { mInput += s; }
+
 protected:
 	std::string mInput;
-	uint32_t mLastTicks;
+	uint64_t mLastTicks;
 	float mSimTime;
 	uint8_t mBusLines;
 	uint8_t mFlagLines;
@@ -286,21 +244,24 @@ int main()
 		while (kbhit())
 		{
 			static char lastch = 0;
-			char ch = getch_echo(false);												// read-in of a character code
+			char ch = getch();												// read-in of a character code
+			printf("\033[1D");
+
 			switch(lastch)
 			{
-				case -32:
+				case 27:
+					printf("\033[1D");
 					switch(ch)
 					{
-						case 79: running = false; break;		// END
-						case 71: cpu.Reset(); break;				// POS1 = Reset
+						case 91: running = false; break;		// END
+						case 27: cpu.Reset(); break;				// POS1 = Reset
 						default: break;
 					}
 					break;
 				default:
 					switch(ch)														// expecting "single key"
 					{
-						case -32: break;										// move to special key mode
+						case 27: break;										// move to special key mode
 						case 13: cpu.Input('\n'); break;
 						default: cpu.Input(ch); break;
 					}
@@ -309,7 +270,7 @@ int main()
 			lastch = ch;
 		}		
 		cpu.Update();
-		usleep(100); // sleep useconds //Sleep(1);
+		usleep(100); // sleep useconds
 	}
 	return 0;
 }

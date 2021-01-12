@@ -1,7 +1,7 @@
 TARGET = main
 LIBS = -lm -lstdc++ -lncurses
 CC = g++
-CFLAGS = -g -Wall -I/usr/include/
+CFLAGS = -O3 -std=c++11 -Wall -I/usr/include/
 
 .PHONY: default all clean
 
