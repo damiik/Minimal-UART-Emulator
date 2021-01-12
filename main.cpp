@@ -8,8 +8,6 @@
 
 #include "./myio.h"
 
-
-
 #define BO   		0b0000000000000001			// definition of control lines within control word
 #define BI  		0b0000000000000010
 #define AO   		0b0000000000000100
@@ -35,7 +33,6 @@ public:
 	virtual void FallingEdge() {}
 	virtual void BeingLow() {}	
 	virtual void RisingEdge() {}	
-	virtual void GettingHigh() {}
 	virtual void BeingHigh() {}	
 };
 
@@ -87,7 +84,7 @@ public:
 		if (result & 0x80) mFlagLines |= 4; else mFlagLines &= ~4;				// negative flag
 		if (mCtrlLines & mOutMask) mPortLines = uint8_t(result);					// output result if EO is active
 	}
-	void GettingHigh() { BeingLow(); }			// 74HC283 works asynchroneous, use "EO|AI, EO|RI" instead of "EO|AI|RI" (same for BI)
+	//void GettingHigh() { BeingLow(); }			// 74HC283 works asynchroneous, use "EO|AI, EO|RI" instead of "EO|AI|RI" (same for BI)
 private:
 	uint8_t& mPortLines;										// reference to the IO lines the component is connected to
 	uint16_t& mCtrlLines;										// reference to the control word	
@@ -192,14 +189,13 @@ public:
 	void Update()
 	{
 		uint64_t nowticks = GetTickCountNs();
-		mSimTime = (nowticks - mLastTicks);
+		mSimTime += (nowticks - mLastTicks);
 		mLastTicks = nowticks;
 		while (mSimTime > 542.534722222f)  // 1 / 1843200Hz = 0.000000543s = 542.534722222ns
 		{
 			for(auto& c : mComponents) c->FallingEdge();
 			for(auto& c : mComponents) c->BeingLow();
 			for(auto& c : mComponents) c->RisingEdge();
-			for(auto& c : mComponents) c->GettingHigh();
 			for(auto& c : mComponents) c->BeingHigh();
 			mSimTime -= 542.534722222f;
 		}
@@ -216,14 +212,10 @@ protected:
 	std::vector<std::shared_ptr<Component>> mComponents;
 };
 
-
 int main()
 {
-	//SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), 0b111);		// enable ANSI control sequences in WINDOWS console
-	
 	// foreground and background colors
 	printf("\033[38;2;200;140;20;48;2;50;35;8m"); //"\033[38;2;<r>;<g>;<b>;48;2;<r>;<g>;<b>m" 
-
 
 	Computer cpu;
 	bool running = true;
@@ -244,7 +236,7 @@ int main()
 					switch(ch)
 					{
 						case 91: running = false; break;		// END
-						case 27: cpu.Reset(); break;				// POS1 = Reset
+						case 27: cpu.Reset(); break;				// ESC+ESC = Reset
 						default: break;
 					}
 					break;
